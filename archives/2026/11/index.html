@@ -43,19 +43,39 @@
   };
 </script>
 
-<!-- ===== LiveRe 去广告拦截器 ===== -->
+<!-- ===== LiveRe 去广告拦截器（AdSense / Taboola / Dable / Coupang / 韩系联盟） ===== -->
 <script>
 (function () {
   'use strict';
 
-  /* 广告资源域名（提取自 livere main-*.js 的联盟位配置） */
-  var AD_HOST = /googlesyndication|doubleclick|googletagservices|dable\.io|insight\.co\.kr|coupang\.com|interworksmedia|innorame\.com|aceplanet|shoppingcall|was\.livere\.me|lap\.livere\.com|ads-partners/i;
+  /* 广告资源域名：抓自 livere main-*.js 全部外链，只放广告类，livere.org / livere.com 自身 API 不动 */
+  var AD_HOST = new RegExp([
+    'googlesyndication',
+    'doubleclick',
+    'googletagservices',
+    'taboola',
+    'dable\\.io',
+    'insight\\.co\\.kr',
+    'coupang\\.com',
+    'interworksmedia',
+    'innorame\\.com',
+    'aceplanet',
+    'shoppingcall',
+    'adop\\.cc',
+    'was\\.livere\\.me',
+    'lap\\.livere\\.com',
+    'ads-partners'
+  ].join('|'), 'i');
 
-  /* 广告容器：不删除，只隐藏并清空，避免 livere 内部引用报错 */
+  /* 广告容器：隐藏 + 清空，不删节点，避免 livere 内部 getElementById 拿到 null 报错 */
   var HIDE_SEL = [
     '[id^="lv-ad-"]',
     '[class^="lv-ad-"]',
+    '[id^="taboola"]',
+    '[class*="taboola"]',
+    '[class*="trc_"]',
     '[id^="dablewidget_"]',
+    '[class*="dable"]',
     '[id^="nitmus_"]',
     '[id^="div-apt-ad-"]',
     '#adsense-livere',
@@ -66,28 +86,37 @@
   /* 广告载荷：直接移除 */
   var DROP_SEL = [
     '.adsbygoogle',
+    '#tb_loader_script',
     'script[src*="googlesyndication"]',
+    'script[src*="googletagservices"]',
+    'script[src*="taboola"]',
     'script[src*="dable.io"]',
     'script[src*="insight.co.kr"]',
-    'script[src*="googletagservices"]',
+    'script[src*="adop.cc"]',
+    'iframe[src*="taboola"]',
     'iframe[src*="coupang"]',
     'iframe[src*="interworksmedia"]',
     'iframe[src*="innorame"]',
     'iframe[src*="aceplanet"]',
     'iframe[src*="livere.me"]',
     'iframe[src*="shoppingcall"]',
-    'iframe[src*="ads-partners"]'
-  ].join(',') + ',[id^="lv-ad-"] iframe,[class^="lv-ad-"] iframe';
+    'iframe[src*="ads-partners"]',
+    '[id^="taboola"] iframe',
+    '[id^="lv-ad-"] iframe'
+  ].join(',');
 
-  /* 1) 打桩 Dable SDK：livere 检测到 window.dable 存在就不再加载 static.dable.io */
+  /* 1) 打桩第三方推荐 SDK，让 livere 里的检测分支直接跳过脚本注入 */
   if (!window.dable) {
-    var _q = [];
-    var _dable = function () { _q.push(arguments); return _q.length; };
-    _dable.q = _q;
+    var _dq = [];
+    var _dable = function () { _dq.push(arguments); return _dq.length; };
+    _dable.q = _dq;
     window.dable = _dable;
   }
+  if (!window._taboola) {
+    window._taboola = [];
+  }
 
-  /* 2) 拦截 script / iframe 的 src 赋值与 setAttribute，阻断广告请求 */
+  /* 2) 拦截 script / iframe 的 src 属性赋值与 setAttribute，广告资源请求根本不发出 */
   ['HTMLScriptElement', 'HTMLIFrameElement'].forEach(function (name) {
     var proto = window[name] && window[name].prototype;
     if (!proto) return;
@@ -120,8 +149,11 @@
 
   /* 3) 清理已存在 / 新插入的广告节点 */
   function neutralize(el) {
+    if (!el || el.nodeType !== 1) return;
     el.style.setProperty('display', 'none', 'important');
     el.style.setProperty('height', '0', 'important');
+    el.style.setProperty('margin', '0', 'important');
+    el.style.setProperty('padding', '0', 'important');
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
@@ -160,8 +192,8 @@
         }
       }).observe(document.documentElement || document, { childList: true, subtree: true });
     }
-    /* livere 广告可能延迟渲染，补几轮扫描 */
-    [300, 1200, 3000, 6000, 10000].forEach(function (ms) { setTimeout(sweep, ms); });
+    /* livere / taboola 均为异步渲染，多轮兜底 */
+    [0, 200, 600, 1200, 2500, 4000, 6000, 9000, 12000].forEach(function (ms) { setTimeout(sweep, ms); });
   }
 
   if (document.readyState === 'loading') {

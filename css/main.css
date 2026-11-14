@@ -1169,7 +1169,7 @@ pre .javascript .function {
 }
 .links-of-author a::before,
 .links-of-author span.exturl::before {
-  background: #24e7ff;
+  background: #28959d;
   border-radius: 50%;
   content: ' ';
   display: inline-block;
@@ -2473,6 +2473,10 @@ body {
 /* ===== LiveRe（来必力）去广告：隐藏免费版注入的联盟广告位 ===== */
 #comments [id^="lv-ad-"],
 #comments [class^="lv-ad-"],
+#comments [id^="taboola"],
+#comments [class*="taboola"],
+#comments [class*="trc_"],
+#comments [class*="dable"],
 #comments #adsense-livere,
 #comments .adsbygoogle,
 #comments [id^="dablewidget_"],
@@ -2497,4 +2501,12 @@ body {
   overflow: hidden !important;
   visibility: hidden !important;
   pointer-events: none !important;
+}
+/* 兜底：评论区里只留 livere 评论组件本身，任何第三方注入块（Taboola / Dable / Coupang / AdSense ...）一律不显示 */
+#comments > *:not(livere-comment):not(#lv-container) {
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
 }
