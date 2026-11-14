@@ -43,6 +43,136 @@
   };
 </script>
 
+<!-- ===== LiveRe 去广告拦截器 ===== -->
+<script>
+(function () {
+  'use strict';
+
+  /* 广告资源域名（提取自 livere main-*.js 的联盟位配置） */
+  var AD_HOST = /googlesyndication|doubleclick|googletagservices|dable\.io|insight\.co\.kr|coupang\.com|interworksmedia|innorame\.com|aceplanet|shoppingcall|was\.livere\.me|lap\.livere\.com|ads-partners/i;
+
+  /* 广告容器：不删除，只隐藏并清空，避免 livere 内部引用报错 */
+  var HIDE_SEL = [
+    '[id^="lv-ad-"]',
+    '[class^="lv-ad-"]',
+    '[id^="dablewidget_"]',
+    '[id^="nitmus_"]',
+    '[id^="div-apt-ad-"]',
+    '#adsense-livere',
+    '#lap-frame',
+    'ins.adsbyadop'
+  ].join(',');
+
+  /* 广告载荷：直接移除 */
+  var DROP_SEL = [
+    '.adsbygoogle',
+    'script[src*="googlesyndication"]',
+    'script[src*="dable.io"]',
+    'script[src*="insight.co.kr"]',
+    'script[src*="googletagservices"]',
+    'iframe[src*="coupang"]',
+    'iframe[src*="interworksmedia"]',
+    'iframe[src*="innorame"]',
+    'iframe[src*="aceplanet"]',
+    'iframe[src*="livere.me"]',
+    'iframe[src*="shoppingcall"]',
+    'iframe[src*="ads-partners"]'
+  ].join(',') + ',[id^="lv-ad-"] iframe,[class^="lv-ad-"] iframe';
+
+  /* 1) 打桩 Dable SDK：livere 检测到 window.dable 存在就不再加载 static.dable.io */
+  if (!window.dable) {
+    var _q = [];
+    var _dable = function () { _q.push(arguments); return _q.length; };
+    _dable.q = _q;
+    window.dable = _dable;
+  }
+
+  /* 2) 拦截 script / iframe 的 src 赋值与 setAttribute，阻断广告请求 */
+  ['HTMLScriptElement', 'HTMLIFrameElement'].forEach(function (name) {
+    var proto = window[name] && window[name].prototype;
+    if (!proto) return;
+    var desc = Object.getOwnPropertyDescriptor(proto, 'src');
+    if (!desc || !desc.set) return;
+    Object.defineProperty(proto, 'src', {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: desc.get,
+      set: function (value) {
+        if (typeof value === 'string' && AD_HOST.test(value)) return;
+        return desc.set.call(this, value);
+      }
+    });
+  });
+
+  var _setAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    if (
+      String(name).toLowerCase() === 'src' &&
+      this.tagName &&
+      (this.tagName === 'SCRIPT' || this.tagName === 'IFRAME') &&
+      typeof value === 'string' &&
+      AD_HOST.test(value)
+    ) {
+      return;
+    }
+    return _setAttribute.call(this, name, value);
+  };
+
+  /* 3) 清理已存在 / 新插入的广告节点 */
+  function neutralize(el) {
+    el.style.setProperty('display', 'none', 'important');
+    el.style.setProperty('height', '0', 'important');
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function kill(node) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.matches && node.matches(HIDE_SEL)) {
+      neutralize(node);
+      return;
+    }
+    if (node.matches && node.matches(DROP_SEL)) {
+      node.remove();
+      return;
+    }
+    if (node.querySelectorAll) {
+      var hides = node.querySelectorAll(HIDE_SEL);
+      for (var i = 0; i < hides.length; i++) neutralize(hides[i]);
+      var drops = node.querySelectorAll(DROP_SEL);
+      for (var j = drops.length - 1; j >= 0; j--) drops[j].remove();
+    }
+  }
+
+  function sweep() {
+    var h = document.querySelectorAll(HIDE_SEL);
+    for (var i = 0; i < h.length; i++) neutralize(h[i]);
+    var d = document.querySelectorAll(DROP_SEL);
+    for (var j = d.length - 1; j >= 0; j--) d[j].remove();
+  }
+
+  function boot() {
+    sweep();
+    if (window.MutationObserver) {
+      new MutationObserver(function (records) {
+        for (var i = 0; i < records.length; i++) {
+          var added = records[i].addedNodes;
+          for (var j = 0; j < added.length; j++) kill(added[j]);
+        }
+      }).observe(document.documentElement || document, { childList: true, subtree: true });
+    }
+    /* livere 广告可能延迟渲染，补几轮扫描 */
+    [300, 1200, 3000, 6000, 10000].forEach(function (ms) { setTimeout(sweep, ms); });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+
+
   <title>归档 | 神的空间</title>
   
 

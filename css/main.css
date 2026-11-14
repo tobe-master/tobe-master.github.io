@@ -1169,7 +1169,7 @@ pre .javascript .function {
 }
 .links-of-author a::before,
 .links-of-author span.exturl::before {
-  background: #8aff1c;
+  background: #24e7ff;
   border-radius: 50%;
   content: ' ';
   display: inline-block;
@@ -2469,4 +2469,32 @@ body {
   background-repeat: no-repeat;
   background-attachment: fixed;
   background-position: 50% 50%;
+}
+/* ===== LiveRe（来必力）去广告：隐藏免费版注入的联盟广告位 ===== */
+#comments [id^="lv-ad-"],
+#comments [class^="lv-ad-"],
+#comments #adsense-livere,
+#comments .adsbygoogle,
+#comments [id^="dablewidget_"],
+#comments #lap-frame,
+#comments ins.adsbyadop,
+#comments [id^="nitmus_"],
+#comments [id^="div-apt-ad-"],
+#comments iframe[src*="coupang"],
+#comments iframe[src*="interworksmedia"],
+#comments iframe[src*="innorame"],
+#comments iframe[src*="aceplanet"],
+#comments iframe[src*="livere.me"],
+#comments iframe[src*="shoppingcall"],
+#comments iframe[src*="ads-partners"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
